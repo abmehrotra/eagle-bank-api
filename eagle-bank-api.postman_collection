@@ -1,0 +1,804 @@
+{
+	"info": {
+		"_postman_id": "58e6deaf-c8ba-41a4-b1ab-e823185a6f16",
+		"name": "Eagle Bank",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "3475525"
+	},
+	"item": [
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Create New User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"fullName\": \"Jonathan Doe\",\r\n  \"email\": \"jonathan@example.com\",\r\n  \"password\": \"Secret123!\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/users",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create New User - Missing User Details",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"fullName\": \"\",\r\n  \"email\": \"jonathan@example.com\",\r\n  \"password\": \"Secret123!\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/users",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();\r",
+									"pm.collectionVariables.set(\"bearerToken\", jsonData.token); "
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"jonathan@example.com\",\r\n  \"password\": \"Secret123!\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/auth/login",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Getting a User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/v1/users/2",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								"2"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Account",
+			"item": [
+				{
+					"name": "Create Bank Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save the returned account ID to an environment variable\r",
+									"let responseJson = pm.response.json();\r",
+									"\r",
+									"if (responseJson && responseJson.id) {\r",
+									"    pm.collectionVariables.set(\"accountId\", responseJson.id);\r",
+									"    console.log(\"accountId saved:\", responseJson.id);\r",
+									"} else {\r",
+									"    console.warn(\"accountId not found in response.\");\r",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"accountType\": \"SAVINGS\",\r\n  \"balance\": 500.00\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"accountType\": \"SAVINGS\",\r\n  \"balance\": 500.00\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Account - Another User's Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"accountType\": \"SAVINGS\",\r\n  \"balance\": 500.00\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Account - Account not found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"accountType\": \"SAVINGS\",\r\n  \"balance\": 500.00\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/2",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Bank Account - Missing Fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"accountType\": \"\",\r\n  \"balance\": 500.00\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Transaction",
+			"item": [
+				{
+					"name": "Create Transaction — Deposit",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"amount\": 250.0,\r\n  \"type\": \"DEPOSIT\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/{{accountId}}/transactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"{{accountId}}",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Transaction — Deposit Another's Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"amount\": 250.0,\r\n  \"type\": \"DEPOSIT\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/{{accountId}}/transactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"{{accountId}}",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Transaction — Deposit Missing Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"amount\": 250.0,\r\n  \"type\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/{{accountId}}/transactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"{{accountId}}",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Transaction — Withdraw Non Existent Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"amount\": 250.0,\r\n  \"type\": \"DEPOSIT\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/{{accountId}}/transactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"{{accountId}}",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Transaction — Withdraw",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"amount\": 100.0,\r\n  \"type\": \"WITHDRAWAL\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/{{accountId}}/transactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"{{accountId}}",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Transaction — Withdraw Insufficient Balance",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"amount\": 1000.0,\r\n  \"type\": \"WITHDRAWAL\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/{{accountId}}/transactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"{{accountId}}",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"amount\": 100.0,\r\n  \"type\": \"WITHDRAW\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/v1/accounts/{{accountId}}/transactions/1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"v1",
+								"accounts",
+								"{{accountId}}",
+								"transactions",
+								"1"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "http://localhost:8080",
+			"type": "default"
+		},
+		{
+			"key": "baseURL",
+			"value": ""
+		},
+		{
+			"key": "bearerToken",
+			"value": ""
+		},
+		{
+			"key": "accountId",
+			"value": ""
+		}
+	]
+}
