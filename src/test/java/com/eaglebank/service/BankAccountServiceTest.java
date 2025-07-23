@@ -80,7 +80,7 @@ public class BankAccountServiceTest {
     }
 
     @Test
-    void testCreateAccount_WhenMissingRequiredData_ShouldThrowIllegalArgumentException() {
+    void testCreateAccount_WhenMissingRequiredData_ShouldThrow400_IllegalArgumentException() {
         BankAccountRequest invalidRequest = new BankAccountRequest(null, 1000.0); // missing accountType
 
         mockStaticAuthContext("user@example.com", () -> {
@@ -93,7 +93,7 @@ public class BankAccountServiceTest {
     }
 
     @Test
-    void testCreateAccount_WhenUserNotFound_ShouldThrowIllegalArgumentException() {
+    void testCreateAccount_WhenUserNotFound_ShouldThrow400_IllegalArgumentException() {
         BankAccountRequest request = new BankAccountRequest("SAVINGS", 1000.0);
 
         mockStaticAuthContext("notfound@example.com", () -> {
@@ -123,7 +123,7 @@ public class BankAccountServiceTest {
     }
 
     @Test
-    void testGetAccountById_WhenAccountDoesNotExist_ShouldThrowNoSuchElementException() {
+    void testGetAccountById_WhenAccountDoesNotExist_ShouldThrow400_AccountNotFound() {
         String email = "owner@example.com";
         User user = new User(1L, "Owner", email, "pass");
 
@@ -140,7 +140,7 @@ public class BankAccountServiceTest {
     }
 
     @Test
-    void testGetAccountById_WhenCurrentUserIsNotAuthenticated_ShouldThrowAccessDeniedException() {
+    void testGetAccountById_WhenCurrentUserIsNotAuthenticated_ShouldThrow403_Forbidden() {
         User owner = new User(1L, "Owner", "owner@example.com", "pass");
         User otherUser = new User(2L, "Other", "other@example.com", "pass");
         BankAccount account = new BankAccount(1L, "SAVINGS", 999.0, owner);
