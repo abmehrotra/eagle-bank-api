@@ -39,17 +39,22 @@ class UserControllerTest {
         userRepository.deleteAll();
     }
 
+    private User createUser(String fullName, String email, String rawPassword) {
+        User user = new User();
+        user.setFullName(fullName);
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        return userRepository.save(user);
+    }
+
+    private String generateTokenForUser(String email) {
+        return jwtService.generateToken(email);
+    }
 
     @Test
     void createUser_ShouldReturn201Created() throws Exception {
-        // Create a dummy existing user for JWT auth
-        User authUser = new User();
-        authUser.setFullName("Auth User");
-        authUser.setEmail("auth@example.com");
-        authUser.setPassword(passwordEncoder.encode("password123"));
-        userRepository.save(authUser);
-
-        String token = jwtService.generateToken(authUser.getEmail());
+        User authUser = createUser("Auth User", "auth@example.com", "password123");
+        String token = generateTokenForUser(authUser.getEmail());
 
         UserRequest newUser = new UserRequest("Jane Smith", "jane@example.com", "secure123");
 
@@ -57,7 +62,7 @@ class UserControllerTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newUser)))
-                .andExpect(status().isCreated())  // 201
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("jane@example.com"));
     }
 
@@ -74,15 +79,8 @@ class UserControllerTest {
 
     @Test
     void getUserById_ShouldReturn200Success() throws Exception {
-        // Create and save user
-        User user = new User();
-        user.setFullName("Alice Johnson");
-        user.setEmail("alice@example.com");
-        user.setPassword(passwordEncoder.encode("password123"));
-        user = userRepository.save(user);
-
-        // Generate JWT for this user
-        String token = jwtService.generateToken(user.getEmail());
+        User user = createUser("Alice Johnson", "alice@example.com", "password123");
+        String token = generateTokenForUser(user.getEmail());
 
         mockMvc.perform(get("/v1/users/" + user.getId())
                         .header("Authorization", "Bearer " + token))
@@ -94,21 +92,9 @@ class UserControllerTest {
 
     @Test
     void getUserByIdAccessDenied_ShouldReturn403Forbidden() throws Exception {
-        // Target user in DB
-        User targetUser = new User();
-        targetUser.setFullName("Bob");
-        targetUser.setEmail("bob@example.com");
-        targetUser.setPassword(passwordEncoder.encode("password123"));
-        targetUser = userRepository.save(targetUser);
-
-        // Authenticated as another user
-        User authUser = new User();
-        authUser.setFullName("Alice");
-        authUser.setEmail("alice@example.com");
-        authUser.setPassword(passwordEncoder.encode("password456"));
-        userRepository.save(authUser);
-
-        String token = jwtService.generateToken(authUser.getEmail());
+        User targetUser = createUser("Bob", "bob@example.com", "password123");
+        User authUser = createUser("Alice", "alice@example.com", "password456");
+        String token = generateTokenForUser(authUser.getEmail());
 
         mockMvc.perform(get("/v1/users/" + targetUser.getId())
                         .header("Authorization", "Bearer " + token))
@@ -117,20 +103,11 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserByIdNotFound_ShouldReturn404() throws Exception {
-        // Authenticated user
-        User authUser = new User();
-        authUser.setFullName("Alice");
-        authUser.setEmail("alice@example.com");
-        authUser.setPassword(passwordEncoder.encode("password456"));
-        userRepository.save(authUser);
+    void getUserByIdNotFound_ShouldReturn404NotFound() throws Exception {
+        User authUser = createUser("Alice", "alice@example.com", "password456");
+        String token = generateTokenForUser(authUser.getEmail());
 
-        String token = jwtService.generateToken(authUser.getEmail());
-
-        // Non-existent userId
-        long nonExistentUserId = 9999L;
-
-        mockMvc.perform(get("/v1/users/" + nonExistentUserId)
+        mockMvc.perform(get("/v1/users/9999")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("User not found"));

@@ -27,41 +27,54 @@ public class UserServiceTest {
 
     @BeforeEach
     void setupSecurityContext() {
+        setAuthenticatedUser("alice@example.com");
+    }
+
+    private void setAuthenticatedUser(String email) {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(new UsernamePasswordAuthenticationToken("alice@example.com", null, null));
+        context.setAuthentication(new UsernamePasswordAuthenticationToken(email, null, null));
         SecurityContextHolder.setContext(context);
     }
 
-    @Test
-    void createUserSuccess() {
-        UserRequest request = new UserRequest("Bob", "bob@example.com", "secret");
+    private User user(Long id, String name, String email, String password) {
+        User u = new User();
+        u.setId(id);
+        u.setFullName(name);
+        u.setEmail(email);
+        u.setPassword(password);
+        return u;
+    }
 
-        when(repo.existsByEmail("bob@example.com")).thenReturn(false);
-        when(repo.save(any())).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            u.setId(1L);
-            return u;
+    private UserRequest userRequest(String name, String email, String password) {
+        return new UserRequest(name, email, password);
+    }
+
+    @Test
+    void createUser_ShouldReturn201_SuccessfulUserCreation() {
+        UserRequest request = userRequest("Bob", "bob@example.com", "secret");
+
+        when(repo.existsByEmail(request.email())).thenReturn(false);
+        when(repo.save(any())).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(1L);
+            return user;
         });
 
-        var result = service.createUser(request);
+        UserResponse result = service.createUser(request);
         assertEquals("Bob", result.fullName());
     }
 
     @Test
-    void createUserDuplicateEmailThrowsException() {
+    void createUser_ShouldReturn404_DuplicateEmail() {
         when(repo.existsByEmail("bob@example.com")).thenReturn(true);
-        assertThrows(IllegalArgumentException.class, () ->
-                service.createUser(new UserRequest("Bob", "bob@example.com", "secret"))
-        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.createUser(userRequest("Bob", "bob@example.com", "secret")));
     }
 
     @Test
-    void getUserByIdForCurrentUser_Success() {
-        User user = new User();
-        user.setId(1L);
-        user.setEmail("alice@example.com");
-        user.setFullName("Alice");
-        user.setPassword("hashed");
+    void getUserByIdForCurrentUser_ShouldReturnUserResponse_AfterSuccessfulCreation() {
+        User user = user(1L, "Alice", "alice@example.com", "hashed");
 
         when(repo.findById(1L)).thenReturn(Optional.of(user));
 
@@ -73,11 +86,8 @@ public class UserServiceTest {
     }
 
     @Test
-    void getUserByIdForCurrentUser_AccessDenied() {
-        User user = new User();
-        user.setId(2L);
-        user.setEmail("bob@example.com");
-        user.setFullName("Bob");
+    void getUserByIdForCurrentUser_ShouldReturn403_Forbidden() {
+        User user = user(2L, "Bob", "bob@example.com", "hashed");
 
         when(repo.findById(2L)).thenReturn(Optional.of(user));
 
@@ -85,7 +95,7 @@ public class UserServiceTest {
     }
 
     @Test
-    void getUserByIdForCurrentUser_UserNotFound() {
+    void getUserByIdForCurrentUser_ShouldReturn404_UserNotFound() {
         when(repo.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class, () -> service.getUserByIdForCurrentUser(99L));
