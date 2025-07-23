@@ -123,7 +123,7 @@ public class BankAccountServiceTest {
     }
 
     @Test
-    void testGetAccountById_WhenAccountDoesNotExist_ShouldThrow400_AccountNotFound() {
+    void testGetAccountById_WhenAccountDoesNotExist_ShouldThrow404_AccountNotFound() {
         String email = "owner@example.com";
         User user = new User(1L, "Owner", email, "pass");
 
