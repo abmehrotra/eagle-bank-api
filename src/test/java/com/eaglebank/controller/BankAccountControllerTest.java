@@ -35,7 +35,7 @@ public class BankAccountControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void testCreateAccount_WhenCurrentUserIsAuthenticated_ShouldReturn201Created() throws Exception {
+    void testCreateAccount_WhenCurrentUserIsAuthenticated_ShouldReturn201_Created() throws Exception {
         BankAccountRequest request = new BankAccountRequest("SAVINGS", 1000.0);
         BankAccountResponse response = new BankAccountResponse(1L, "SAVINGS", 1000.0);
 
@@ -52,7 +52,7 @@ public class BankAccountControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void testCreateAccount_WithMissingFields_WhenCurrentUserIsAuthenticated_ShouldReturn400BadRequest() throws Exception {
+    void testCreateAccount_WithMissingFields_ShouldReturn400_BadRequest() throws Exception {
         BankAccountRequest invalidRequest = new BankAccountRequest("", null);
 
         mockMvc.perform(post("/v1/accounts")
@@ -64,7 +64,7 @@ public class BankAccountControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void testGetAccount_WhenCurrentUserIsAuthenticated_AndBankAccountProvidedExists_ShouldReturnBankDetails() throws Exception {
+    void testGetAccount_AndBankAccountProvidedExists_ShouldReturnBankDetails() throws Exception {
         BankAccountResponse response = new BankAccountResponse(2L, "CURRENT", 5000.0);
         Mockito.when(service.getAccountById(2L)).thenReturn(response);
 
@@ -77,7 +77,7 @@ public class BankAccountControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void testGetAccount_WhenAccessingAnotherUsersAccount_ShouldReturn403Forbidden() throws Exception {
+    void testGetAccount_WhenAccessingAnotherUsersAccount_ShouldReturn403_Forbidden() throws Exception {
         Mockito.when(service.getAccountById(3L))
                 .thenThrow(new org.springframework.security.access.AccessDeniedException("Access denied to this account"));
 
@@ -88,7 +88,7 @@ public class BankAccountControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void testGetAccount_WhenAccountDoesNotExist_ShouldReturn404NotFound() throws Exception {
+    void testGetAccount_WhenAccountDoesNotExist_ShouldReturn404_NotFound() throws Exception {
         Mockito.when(service.getAccountById(4L))
                 .thenThrow(new java.util.NoSuchElementException("Bank account not found"));
 

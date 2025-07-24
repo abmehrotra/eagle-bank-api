@@ -1,7 +1,9 @@
 package com.eaglebank.controller;
 
 import com.eaglebank.dto.UserRequest;
+import com.eaglebank.model.BankAccount;
 import com.eaglebank.model.User;
+import com.eaglebank.repository.BankAccountRepository;
 import com.eaglebank.repository.UserRepository;
 import com.eaglebank.security.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,12 +32,15 @@ class UserControllerTest {
     @Autowired
     private UserRepository userRepository;
     @Autowired
+    private BankAccountRepository bankRepository;
+    @Autowired
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setup() {
+        bankRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -51,8 +56,13 @@ class UserControllerTest {
         return jwtService.generateToken(email);
     }
 
+    private void saveBankAccount(User user) {
+        bankRepository.save(new BankAccount(null, "SAVINGS", 1000.0, user));
+    }
+
+
     @Test
-    void createUser_ShouldReturn201Created() throws Exception {
+    void createUser_ShouldReturn201_Created() throws Exception {
         User authUser = createUser("Auth User", "auth@example.com", "password123");
         String token = generateTokenForUser(authUser.getEmail());
 
@@ -67,7 +77,7 @@ class UserControllerTest {
     }
 
     @Test
-    void createUserMissingFields_ShouldReturn400BadRequest() throws Exception {
+    void createUserMissingFields_ShouldReturn400_BadRequest() throws Exception {
         UserRequest request = new UserRequest("", "invalid-email", "");
 
         mockMvc.perform(post("/v1/users")
@@ -78,7 +88,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserById_ShouldReturn200Success() throws Exception {
+    void getUserById_ShouldReturn200_Success() throws Exception {
         User user = createUser("Alice Johnson", "alice@example.com", "password123");
         String token = generateTokenForUser(user.getEmail());
 
@@ -91,7 +101,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserByIdAccessDenied_ShouldReturn403Forbidden() throws Exception {
+    void getUserByIdAccessDenied_ShouldReturn403_Forbidden() throws Exception {
         User targetUser = createUser("Bob", "bob@example.com", "password123");
         User authUser = createUser("Alice", "alice@example.com", "password456");
         String token = generateTokenForUser(authUser.getEmail());
@@ -103,7 +113,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserByIdNotFound_ShouldReturn404NotFound() throws Exception {
+    void getUserByIdNotFound_ShouldReturn404_NotFound() throws Exception {
         User authUser = createUser("Alice", "alice@example.com", "password456");
         String token = generateTokenForUser(authUser.getEmail());
 
