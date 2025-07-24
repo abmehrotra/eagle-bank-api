@@ -62,7 +62,7 @@ class UserControllerTest {
 
 
     @Test
-    void createUser_ShouldReturn201_Created() throws Exception {
+    void testCreateUser_ShouldReturn201_Created() throws Exception {
         User authUser = createUser("Auth User", "auth@example.com", "password123");
         String token = generateTokenForUser(authUser.getEmail());
 
@@ -77,7 +77,7 @@ class UserControllerTest {
     }
 
     @Test
-    void createUserMissingFields_ShouldReturn400_BadRequest() throws Exception {
+    void testCreateUserMissingFields_ShouldReturn400_BadRequest() throws Exception {
         UserRequest request = new UserRequest("", "invalid-email", "");
 
         mockMvc.perform(post("/v1/users")
@@ -88,7 +88,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserById_ShouldReturn200_Success() throws Exception {
+    void testGetUserById_ShouldReturn200_Success() throws Exception {
         User user = createUser("Alice Johnson", "alice@example.com", "password123");
         String token = generateTokenForUser(user.getEmail());
 
@@ -101,7 +101,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserByIdAccessDenied_ShouldReturn403_Forbidden() throws Exception {
+    void testGetUserByIdAccessDenied_ShouldReturn403_Forbidden() throws Exception {
         User targetUser = createUser("Bob", "bob@example.com", "password123");
         User authUser = createUser("Alice", "alice@example.com", "password456");
         String token = generateTokenForUser(authUser.getEmail());
@@ -113,7 +113,7 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserByIdNotFound_ShouldReturn404_NotFound() throws Exception {
+    void testGetUserByIdNotFound_ShouldReturn404_NotFound() throws Exception {
         User authUser = createUser("Alice", "alice@example.com", "password456");
         String token = generateTokenForUser(authUser.getEmail());
 

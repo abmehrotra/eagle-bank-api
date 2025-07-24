@@ -43,17 +43,29 @@ public class TransactionServiceTest {
 
     @BeforeEach
     void setupSecurityContext() {
-        var auth = new UsernamePasswordAuthenticationToken("test@example.com", null, List.of());
+        authenticateAs("test@example.com");
+    }
+
+    private void authenticateAs(String email) {
+        var auth = new UsernamePasswordAuthenticationToken(email, null, List.of());
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
+    private User createUser(Long id, String email) {
+        return new User(id, "Name", "pass", email);
+    }
+
+    private BankAccount createAccount(Long id, double balance, User owner) {
+        return new BankAccount(id, "SAVINGS", balance, owner);
+    }
+
     @Test
-    void testDepositTransaction_WithAccountAssociated_Returns200Success() {
-        var user = new User(1L, "John", "pass", "test@example.com");
-        var account = new BankAccount(1L, "SAVINGS", 100.0, user);
+    void testDepositTransaction_WithAccountAssociated_Returns200_Success() {
+        var user = createUser(1L, "test@example.com");
+        var account = createAccount(1L, 100.0, user);
         var request = new TransactionRequest(50.0, TransactionType.DEPOSIT);
 
-        when(userRepo.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
         when(accountRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(transactionRepo.save(any())).thenAnswer(i -> {
@@ -70,12 +82,12 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void testWithdrawalTransaction_HavingSufficientBalance_Returns200Success() {
-        var user = new User(1L, "John", "pass", "test@example.com");
-        var account = new BankAccount(1L, "SAVINGS", 200.0, user);
+    void testWithdrawalTransaction_HavingSufficientBalance_Returns200_Success() {
+        var user = createUser(1L, "test@example.com");
+        var account = createAccount(1L, 200.0, user);
         var request = new TransactionRequest(100.0, TransactionType.WITHDRAWAL);
 
-        when(userRepo.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
         when(accountRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(transactionRepo.save(any())).thenAnswer(i -> {
@@ -92,12 +104,12 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void testWithdrawalTransaction_HavingInsufficientBalance_Throws422UnprocessableEntity() {
-        var user = new User(1L, "John", "pass", "test@example.com");
-        var account = new BankAccount(1L, "SAVINGS", 30.0, user);
+    void testWithdrawalTransaction_HavingInsufficientBalance_ShouldThrow422_UnprocessableEntity() {
+        var user = createUser(1L, "test@example.com");
+        var account = createAccount(1L, 30.0, user);
         var request = new TransactionRequest(100.0, TransactionType.WITHDRAWAL);
 
-        when(userRepo.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
 
         assertThrows(InsufficientFundsException.class,
@@ -105,49 +117,47 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void testCreateTransaction_ForAccountAssociatedWithAnotherUsersAccount_Returns403Forbidden() {
-        var loggedInUser = new User(1L, "John", "pass", "john@example.com");
-        var otherUser = new User(2L, "Jane", "pass", "jane@example.com");
-        var account = new BankAccount(10L, "SAVINGS", 100.0, otherUser);
+    void testCreateTransaction_AnotherUsersAccount_Returns403_Forbidden() {
+        var loggedInUser = createUser(1L, "john@example.com");
+        var otherUser = createUser(2L, "jane@example.com");
+        var account = createAccount(10L, 100.0, otherUser);
         var request = new TransactionRequest(50.0, TransactionType.DEPOSIT);
 
-        when(userRepo.findByEmail("john@example.com")).thenReturn(Optional.of(loggedInUser));
-        when(accountRepo.findById(10L)).thenReturn(Optional.of(account));
+        authenticateAs(loggedInUser.getEmail());
 
-        var auth = new UsernamePasswordAuthenticationToken("john@example.com", null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        when(userRepo.findByEmail(loggedInUser.getEmail())).thenReturn(Optional.of(loggedInUser));
+        when(accountRepo.findById(10L)).thenReturn(Optional.of(account));
 
         assertThrows(AccessDeniedException.class,
                 () -> transactionService.createTransaction(10L, request));
     }
 
     @Test
-    void testCreateTransaction_ForAccountThatDoesNotExist_Returns404NotFound() {
-        var user = new User(1L, "John", "pass", "john@example.com");
+    void testCreateTransaction_AccountDoesNotExist_Returns404_NotFound() {
+        var user = createUser(1L, "john@example.com");
         var request = new TransactionRequest(50.0, TransactionType.DEPOSIT);
 
-        when(userRepo.findByEmail("john@example.com")).thenReturn(Optional.of(user));
-        when(accountRepo.findById(99L)).thenReturn(Optional.empty()); // Non-existent account
+        authenticateAs(user.getEmail());
 
-        var auth = new UsernamePasswordAuthenticationToken("john@example.com", null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(accountRepo.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(NoSuchElementException.class, () -> transactionService.createTransaction(99L, request));
+        assertThrows(NoSuchElementException.class,
+                () -> transactionService.createTransaction(99L, request));
     }
 
     @Test
     void getTransaction_ReturnsCorrectResponse() {
-        var user = new User(1L, "Alice", "pass", "alice@example.com");
-        var account = new BankAccount(1L, "SAVINGS", 1000.0, user);
+        var user = createUser(1L, "alice@example.com");
+        var account = createAccount(1L, 1000.0, user);
         var transaction = new Transaction(100.0, TransactionType.DEPOSIT, LocalDateTime.now(), account);
         transaction.setId(10L);
 
-        when(userRepo.findByEmail("alice@example.com")).thenReturn(Optional.of(user));
-        when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
-        when(transactionRepo.findById(10L)).thenReturn(Optional.of(transaction));
+        authenticateAs(user.getEmail());
 
-        var auth = new UsernamePasswordAuthenticationToken("alice@example.com", null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
+        when(transactionRepo.findById(transaction.getId())).thenReturn(Optional.of(transaction));
 
         var result = transactionService.getTransaction(1L, 10L);
 
@@ -158,87 +168,68 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void getTransaction_AccountNotOwnedByUser_Throws403Forbidden() {
-        // Logged-in user
-        var loggedInUser = new User(1L, "John", "pass", "john@example.com");
-
-        // Account belongs to another user
-        var otherUser = new User(2L, "Jane", "pass", "jane@example.com");
-        var account = new BankAccount(20L, "SAVINGS", 500.0, otherUser);
-
-        // Transaction belongs to that account
+    void getTransaction_AccountNotOwnedByUser_ShouldThrow403_Forbidden() {
+        var loggedInUser = createUser(1L, "john@example.com");
+        var otherUser = createUser(2L, "jane@example.com");
+        var account = createAccount(20L, 500.0, otherUser);
         var transaction = new Transaction(50.0, TransactionType.WITHDRAWAL, LocalDateTime.now(), account);
         transaction.setId(99L);
 
-        // Mocking
-        when(userRepo.findByEmail("john@example.com")).thenReturn(Optional.of(loggedInUser));
-        when(accountRepo.findById(20L)).thenReturn(Optional.of(account));
+        authenticateAs(loggedInUser.getEmail());
 
-        // Set the authenticated user
-        var auth = new UsernamePasswordAuthenticationToken("john@example.com", null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        when(userRepo.findByEmail(loggedInUser.getEmail())).thenReturn(Optional.of(loggedInUser));
+        when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
+        when(transactionRepo.findById(transaction.getId())).thenReturn(Optional.of(transaction));
 
-        // Assert
         assertThrows(AccessDeniedException.class,
                 () -> transactionService.getTransaction(20L, 99L));
     }
 
     @Test
-    void getTransaction_TransactionNotFound_Throws404NotFound() {
-        var user = new User(1L, "Alice", "pass", "alice@example.com");
-        var account = new BankAccount(1L, "SAVINGS", 1000.0, user);
+    void getTransaction_TransactionNotFound_ShouldThrow404_NotFound() {
+        var user = createUser(1L, "alice@example.com");
+        var account = createAccount(1L, 1000.0, user);
 
-        when(userRepo.findByEmail("alice@example.com")).thenReturn(Optional.of(user));
-        when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
+        authenticateAs(user.getEmail());
+
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
         when(transactionRepo.findById(10L)).thenReturn(Optional.empty());
 
-        var auth = new UsernamePasswordAuthenticationToken("alice@example.com", null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
-        assertThrows(NoSuchElementException.class, () -> transactionService.getTransaction(1L, 10L));
+        assertThrows(NoSuchElementException.class,
+                () -> transactionService.getTransaction(1L, 10L));
     }
 
     @Test
-    void getTransaction_AccountDoesNotExist_Throws404NotFound() {
-        var user = new User(1L, "Alice", "pass", "alice@example.com");
+    void getTransaction_AccountDoesNotExist_ShouldThrow404_NotFound() {
+        var user = createUser(1L, "alice@example.com");
 
-        when(userRepo.findByEmail("alice@example.com")).thenReturn(Optional.of(user));
-        when(accountRepo.findById(999L)).thenReturn(Optional.empty()); // Account not found
+        authenticateAs(user.getEmail());
 
-        var auth = new UsernamePasswordAuthenticationToken("alice@example.com", null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(accountRepo.findById(999L)).thenReturn(Optional.empty());
 
-        assertThrows(NoSuchElementException.class, () -> transactionService.getTransaction(999L, 10L));
+        assertThrows(NoSuchElementException.class,
+                () -> transactionService.getTransaction(999L, 10L));
     }
 
     @Test
-    void getTransaction_TransactionNotLinkedToAccount_Throws404NotFound() {
-        // Arrange
-        var user = new User(1L, "Alice", "pass", "alice@example.com");
-
-        var account = new BankAccount();
-        account.setId(1L);
-        account.setUser(user);
-
-        when(userRepo.findByEmail("alice@example.com")).thenReturn(Optional.of(user));
-        when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
-
-        // Create a transaction linked to a different account
-        var differentAccount = new BankAccount();
-        differentAccount.setId(2L);
-        differentAccount.setUser(user);
+    void getTransaction_TransactionForInAccount_ShouldThrow404_NotFound() {
+        var user = createUser(1L, "alice@example.com");
+        var account = createAccount(1L, 0.0, user);
+        var differentAccount = createAccount(2L, 0.0, user);
 
         var transaction = new Transaction(100.0, TransactionType.DEPOSIT, LocalDateTime.now(), differentAccount);
         transaction.setId(10L);
 
+        authenticateAs(user.getEmail());
+
+        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
         when(transactionRepo.findById(10L)).thenReturn(Optional.of(transaction));
 
-        var auth = new UsernamePasswordAuthenticationToken("alice@example.com", null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
-        // Act & Assert
-        assertThrows(NoSuchElementException.class, () ->
-                transactionService.getTransaction(1L, 10L));
+        assertThrows(NoSuchElementException.class,
+                () -> transactionService.getTransaction(1L, 10L));
     }
 }
 

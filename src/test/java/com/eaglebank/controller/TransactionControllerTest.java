@@ -9,6 +9,7 @@ import com.eaglebank.repository.UserRepository;
 import com.eaglebank.service.TransactionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -49,9 +49,20 @@ public class TransactionControllerTest {
     @Autowired
     private UserRepository userRepo;
 
+    @BeforeEach
+    void setup() {
+        transactionRepo.deleteAll();
+        accountRepo.deleteAll();
+        userRepo.deleteAll();
+    }
+
+    private String toJson(Object obj) throws Exception {
+        return objectMapper.writeValueAsString(obj);
+    }
+
     @Test
     @WithMockUser(username = "test@example.com")
-    void createTransaction_ShouldReturn200Ok() throws Exception {
+    void testCreateTransaction_ShouldReturn200Ok() throws Exception {
         TransactionRequest request = new TransactionRequest(100.0, TransactionType.DEPOSIT);
         TransactionResponse response = new TransactionResponse(1L, TransactionType.DEPOSIT, 100.0, 600.0);
 
@@ -60,7 +71,7 @@ public class TransactionControllerTest {
 
         mockMvc.perform(post("/v1/accounts/1/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.transactionId").value(1))
                 .andExpect(jsonPath("$.amount").value(100.0))
@@ -69,8 +80,7 @@ public class TransactionControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void createTransaction_MissingData_ShouldReturn400BadRequest() throws Exception {
-        // Missing amount and type (empty body)
+    void testCreateTransaction_MissingData_ShouldReturn400_BadRequest() throws Exception {
         String requestBody = "{}";
 
         mockMvc.perform(post("/v1/accounts/1/transactions")
@@ -83,7 +93,7 @@ public class TransactionControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void getTransaction_ShouldReturnTransactionDetails() throws Exception {
+    void testGetTransaction_ShouldReturnTransactionDetails() throws Exception {
         long accountId = 1L;
         long transactionId = 100L;
 
@@ -108,12 +118,12 @@ public class TransactionControllerTest {
 
     @Test
     @WithMockUser(username = "intruder@example.com")
-    void getTransaction_WhenAccountNotOwnedByUser_ShouldReturn403Forbidden() throws Exception {
+    void testGetTransaction_WhenAccountNotOwnedByUser_ShouldReturn403_Forbidden() throws Exception {
         long accountId = 1L;
         long transactionId = 100L;
 
         Mockito.when(transactionService.getTransaction(accountId, transactionId))
-                .thenThrow(new AccessDeniedException("Access denied to this transaction"));
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("Access denied to this transaction"));
 
         mockMvc.perform(get("/v1/accounts/{accountId}/transactions/{transactionId}", accountId, transactionId)
                         .contentType(MediaType.APPLICATION_JSON))
@@ -123,7 +133,7 @@ public class TransactionControllerTest {
 
     @Test
     @WithMockUser(username = "test@example.com")
-    void getTransaction_WhenAccountDoesNotExist_ShouldReturn404NotFound() throws Exception {
+    void testGetTransaction_WhenAccountDoesNotExist_ShouldReturn404_NotFound() throws Exception {
         long nonExistentAccountId = 999L;
         long transactionId = 100L;
 
