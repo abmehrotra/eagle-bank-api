@@ -27,7 +27,10 @@ public class Transaction {
     @JoinColumn(name = "account_id")
     private BankAccount bankAccount;
 
-    public Transaction() {
+    @Column(name = "balance_after_transaction")
+    private Double balanceAfterTransaction;
+
+    private Transaction() {
     }
 
     public Transaction(Double amount, TransactionType type, LocalDateTime timestamp, BankAccount bankAccount) {

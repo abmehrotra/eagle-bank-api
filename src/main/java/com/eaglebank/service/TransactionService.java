@@ -52,7 +52,13 @@ public class TransactionService {
         account.setBalance(updatedBalance);
         accountRepository.save(account);
 
-        Transaction transaction = new Transaction(request.amount(), request.type(), LocalDateTime.now(), account);
+        Transaction transaction = new Transaction(
+                request.amount(),
+                request.type(),
+                LocalDateTime.now(),
+                account
+        );
+        transaction.setBalanceAfterTransaction(updatedBalance);
         Transaction saved = transactionRepository.save(transaction);
 
         return new TransactionResponse(saved.getId(), saved.getType(), saved.getAmount(), updatedBalance);
