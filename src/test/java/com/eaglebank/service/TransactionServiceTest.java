@@ -9,6 +9,7 @@ import com.eaglebank.model.User;
 import com.eaglebank.repository.BankAccountRepository;
 import com.eaglebank.repository.TransactionRepository;
 import com.eaglebank.repository.UserRepository;
+import com.eaglebank.util.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,12 +35,18 @@ public class TransactionServiceTest {
 
     @Mock
     private BankAccountRepository accountRepo;
+
     @Mock
     private TransactionRepository transactionRepo;
+
     @Mock
     private UserRepository userRepo;
+
     @InjectMocks
     private TransactionService transactionService;
+
+    @Mock
+    private SecurityUtils securityUtils;
 
     @BeforeEach
     void setupSecurityContext() {
@@ -52,11 +59,23 @@ public class TransactionServiceTest {
     }
 
     private User createUser(Long id, String email) {
-        return new User(id, "Name", "pass", email);
+        return new User(id, "Name", "password", email);
     }
 
     private BankAccount createAccount(Long id, double balance, User owner) {
         return new BankAccount(id, "SAVINGS", balance, owner);
+    }
+
+    private void mockCommonAuth(User user) {
+        when(securityUtils.getAuthenticatedUser()).thenReturn(user);
+    }
+
+    private void mockTransactionSaveWithId(Long id) {
+        when(transactionRepo.save(any())).thenAnswer(invocation -> {
+            Transaction tx = invocation.getArgument(0);
+            tx.setId(id);
+            return tx;
+        });
     }
 
     @Test
@@ -65,14 +84,10 @@ public class TransactionServiceTest {
         var account = createAccount(1L, 100.0, user);
         var request = new TransactionRequest(50.0, TransactionType.DEPOSIT);
 
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
         when(accountRepo.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(transactionRepo.save(any())).thenAnswer(i -> {
-            Transaction tx = i.getArgument(0);
-            tx.setId(1L);
-            return tx;
-        });
+        mockTransactionSaveWithId(1L);
 
         var response = transactionService.createTransaction(1L, request);
 
@@ -87,14 +102,10 @@ public class TransactionServiceTest {
         var account = createAccount(1L, 200.0, user);
         var request = new TransactionRequest(100.0, TransactionType.WITHDRAWAL);
 
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
         when(accountRepo.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(transactionRepo.save(any())).thenAnswer(i -> {
-            Transaction tx = i.getArgument(0);
-            tx.setId(2L);
-            return tx;
-        });
+        mockTransactionSaveWithId(2L);
 
         var response = transactionService.createTransaction(1L, request);
 
@@ -109,7 +120,7 @@ public class TransactionServiceTest {
         var account = createAccount(1L, 30.0, user);
         var request = new TransactionRequest(100.0, TransactionType.WITHDRAWAL);
 
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(1L)).thenReturn(Optional.of(account));
 
         assertThrows(InsufficientFundsException.class,
@@ -124,8 +135,7 @@ public class TransactionServiceTest {
         var request = new TransactionRequest(50.0, TransactionType.DEPOSIT);
 
         authenticateAs(loggedInUser.getEmail());
-
-        when(userRepo.findByEmail(loggedInUser.getEmail())).thenReturn(Optional.of(loggedInUser));
+        mockCommonAuth(loggedInUser);
         when(accountRepo.findById(10L)).thenReturn(Optional.of(account));
 
         assertThrows(AccessDeniedException.class,
@@ -138,8 +148,7 @@ public class TransactionServiceTest {
         var request = new TransactionRequest(50.0, TransactionType.DEPOSIT);
 
         authenticateAs(user.getEmail());
-
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class,
@@ -154,8 +163,7 @@ public class TransactionServiceTest {
         transaction.setId(10L);
 
         authenticateAs(user.getEmail());
-
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
         when(transactionRepo.findById(transaction.getId())).thenReturn(Optional.of(transaction));
 
@@ -176,10 +184,8 @@ public class TransactionServiceTest {
         transaction.setId(99L);
 
         authenticateAs(loggedInUser.getEmail());
-
-        when(userRepo.findByEmail(loggedInUser.getEmail())).thenReturn(Optional.of(loggedInUser));
+        mockCommonAuth(loggedInUser);
         when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
-        when(transactionRepo.findById(transaction.getId())).thenReturn(Optional.of(transaction));
 
         assertThrows(AccessDeniedException.class,
                 () -> transactionService.getTransaction(20L, 99L));
@@ -191,8 +197,7 @@ public class TransactionServiceTest {
         var account = createAccount(1L, 1000.0, user);
 
         authenticateAs(user.getEmail());
-
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
         when(transactionRepo.findById(10L)).thenReturn(Optional.empty());
 
@@ -205,8 +210,7 @@ public class TransactionServiceTest {
         var user = createUser(1L, "alice@example.com");
 
         authenticateAs(user.getEmail());
-
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class,
@@ -218,13 +222,11 @@ public class TransactionServiceTest {
         var user = createUser(1L, "alice@example.com");
         var account = createAccount(1L, 0.0, user);
         var differentAccount = createAccount(2L, 0.0, user);
-
         var transaction = new Transaction(100.0, TransactionType.DEPOSIT, LocalDateTime.now(), differentAccount);
         transaction.setId(10L);
 
         authenticateAs(user.getEmail());
-
-        when(userRepo.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        mockCommonAuth(user);
         when(accountRepo.findById(account.getId())).thenReturn(Optional.of(account));
         when(transactionRepo.findById(10L)).thenReturn(Optional.of(transaction));
 
@@ -232,4 +234,3 @@ public class TransactionServiceTest {
                 () -> transactionService.getTransaction(1L, 10L));
     }
 }
-

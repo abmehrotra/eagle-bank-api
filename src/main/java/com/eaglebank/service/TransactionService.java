@@ -9,9 +9,8 @@ import com.eaglebank.model.TransactionType;
 import com.eaglebank.model.User;
 import com.eaglebank.repository.BankAccountRepository;
 import com.eaglebank.repository.TransactionRepository;
-import com.eaglebank.repository.UserRepository;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.eaglebank.util.AccessValidator;
+import com.eaglebank.util.SecurityUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,33 +21,29 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final BankAccountRepository accountRepository;
-    private final UserRepository userRepository;
+    private final SecurityUtils securityUtils;
 
     public TransactionService(TransactionRepository transactionRepository,
                               BankAccountRepository accountRepository,
-                              UserRepository userRepository) {
+                              SecurityUtils securityUtils) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
-        this.userRepository = userRepository;
+        this.securityUtils = securityUtils;
     }
 
     public TransactionResponse createTransaction(Long accountId, TransactionRequest request) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        User user = securityUtils.getAuthenticatedUser();
 
         BankAccount account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new NoSuchElementException("Bank account not found"));
 
-        if (!account.getUser().getId().equals(user.getId())) {
-            throw new AccessDeniedException("Access denied to this account");
-        }
+        AccessValidator.validateOwnership(account.getUser(), user);
 
         double updatedBalance = account.getBalance();
         if (request.type() == TransactionType.DEPOSIT) {
             updatedBalance += request.amount();
         } else if (request.type() == TransactionType.WITHDRAWAL) {
-            if (request.amount() > account.getBalance()) {
+            if (request.amount() > updatedBalance) {
                 throw new InsufficientFundsException("Insufficient funds");
             }
             updatedBalance -= request.amount();
@@ -64,16 +59,12 @@ public class TransactionService {
     }
 
     public TransactionResponse getTransaction(Long accountId, Long transactionId) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        User user = securityUtils.getAuthenticatedUser();
 
         BankAccount account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new NoSuchElementException("Bank account not found"));
 
-        if (!account.getUser().getId().equals(user.getId())) {
-            throw new AccessDeniedException("Access denied to this account");
-        }
+        AccessValidator.validateOwnership(account.getUser(), user);
 
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new NoSuchElementException("Transaction not found"));
