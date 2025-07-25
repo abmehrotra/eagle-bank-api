@@ -3,37 +3,39 @@ package com.eaglebank.service;
 import com.eaglebank.dto.UserRequest;
 import com.eaglebank.dto.UserResponse;
 import com.eaglebank.model.User;
+import com.eaglebank.repository.BankAccountRepository;
 import com.eaglebank.repository.UserRepository;
+import com.eaglebank.util.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class UserServiceTest {
 
-    private final UserRepository repo = mock(UserRepository.class);
-    private final UserService service = new UserService(repo);
+    private UserRepository repo;
+    private BankAccountRepository bankRepository;
+    private SecurityUtils securityUtils;
+    private PasswordEncoder passwordEncoder;
+    private UserService service;
 
     @BeforeEach
-    void setupSecurityContext() {
-        setAuthenticatedUser("alice@example.com");
-    }
+    void setup() {
+        repo = mock(UserRepository.class);
+        bankRepository = mock(BankAccountRepository.class);
+        securityUtils = mock(SecurityUtils.class);
+        passwordEncoder = mock(PasswordEncoder.class);
+        service = new UserService(repo, bankRepository, securityUtils, passwordEncoder);
 
-    private void setAuthenticatedUser(String email) {
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(new UsernamePasswordAuthenticationToken(email, null, null));
-        SecurityContextHolder.setContext(context);
+        when(securityUtils.getAuthenticatedEmail()).thenReturn("alice@example.com");
+        when(passwordEncoder.encode(any())).thenAnswer(inv -> "encoded-" + inv.getArgument(0));
     }
 
     private User user(Long id, String name, String email, String password) {
@@ -62,10 +64,11 @@ public class UserServiceTest {
 
         UserResponse result = service.createUser(request);
         assertEquals("Bob", result.fullName());
+        assertEquals("bob@example.com", result.email());
     }
 
     @Test
-    void createUser_ShouldReturn404_DuplicateEmail() {
+    void createUser_WhenEmailExists_ShouldReturn400_BadRequest() {
         when(repo.existsByEmail("bob@example.com")).thenReturn(true);
 
         assertThrows(IllegalArgumentException.class,

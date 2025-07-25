@@ -3,10 +3,11 @@ package com.eaglebank.service;
 import com.eaglebank.dto.UserRequest;
 import com.eaglebank.dto.UserResponse;
 import com.eaglebank.model.User;
+import com.eaglebank.repository.BankAccountRepository;
 import com.eaglebank.repository.UserRepository;
+import com.eaglebank.util.SecurityUtils;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.NoSuchElementException;
@@ -15,9 +16,18 @@ import java.util.NoSuchElementException;
 public class UserService {
 
     private final UserRepository repo;
+    private final BankAccountRepository bankAccountRepository;
+    private final SecurityUtils securityUtils;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository repo) {
+    public UserService(UserRepository repo,
+                       BankAccountRepository bankAccountRepository,
+                       SecurityUtils securityUtils,
+                       PasswordEncoder passwordEncoder) {
         this.repo = repo;
+        this.bankAccountRepository = bankAccountRepository;
+        this.securityUtils = securityUtils;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public UserResponse createUser(UserRequest request) {
@@ -25,27 +35,36 @@ public class UserService {
             throw new IllegalArgumentException("Email already exists");
         }
 
-        User user = new User();
-        user.setFullName(request.fullName());
-        user.setEmail(request.email());
-        user.setPassword(new BCryptPasswordEncoder().encode(request.password()));
+        User newUser = new User();
+        newUser.setFullName(request.fullName());
+        newUser.setEmail(request.email());
+        newUser.setPassword(passwordEncoder.encode(request.password()));
 
-        User saved = repo.save(user);
-        return new UserResponse(saved.getId(), saved.getFullName(), saved.getEmail());
+        User savedUser = repo.save(newUser);
+        return mapToResponse(savedUser);
     }
 
     public UserResponse getUserByIdForCurrentUser(Long userId) {
-        User user = repo.findById(userId)
+        User user = getUserOrThrow(userId);
+        ensureCurrentUserAccess(user);
+        return mapToResponse(user);
+    }
+
+    // --- Private utility methods ---
+
+    private User getUserOrThrow(Long userId) {
+        return repo.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
+    }
 
-        // Get email from SecurityContext
-        String authenticatedEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        // Ensure the requester is accessing their own data
+    private void ensureCurrentUserAccess(User user) {
+        String authenticatedEmail = securityUtils.getAuthenticatedEmail();
         if (!user.getEmail().equals(authenticatedEmail)) {
             throw new AccessDeniedException("Access denied");
         }
+    }
 
+    private UserResponse mapToResponse(User user) {
         return new UserResponse(user.getId(), user.getFullName(), user.getEmail());
     }
 }
