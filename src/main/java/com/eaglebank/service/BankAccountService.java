@@ -62,31 +62,4 @@ public class BankAccountService {
                         account.getBalance()))
                 .toList();
     }
-
-    public BankAccountResponse updateAccount(Long accountId, BankAccountRequest request) {
-        User currentUser = securityUtils.getAuthenticatedUser();
-
-        BankAccount account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new NoSuchElementException("Bank account not found"));
-
-        AccessValidator.validateOwnership(account.getUser(), currentUser);
-
-        account.setAccountType(request.accountType());
-        account.setBalance(request.balance());
-
-        BankAccount updated = accountRepository.save(account);
-
-        return new BankAccountResponse(updated.getId(), updated.getAccountType(), updated.getBalance());
-    }
-
-    public void deleteAccountById(Long accountId) {
-        User currentUser = securityUtils.getAuthenticatedUser();
-
-        BankAccount account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new NoSuchElementException("Bank account not found"));
-
-        AccessValidator.validateOwnership(account.getUser(), currentUser);
-
-        accountRepository.delete(account);
-    }
 }
