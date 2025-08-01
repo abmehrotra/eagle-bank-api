@@ -29,4 +29,17 @@ public class UserController {
         UserResponse response = service.getUserByIdForCurrentUser(userId);
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/{userId}")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long userId, @Valid @RequestBody UserRequest request) {
+        UserResponse response = service.updateUserDetails(userId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<String> deleteUser(@PathVariable Long userId) {
+        service.deleteUser(userId);
+        String response = "User with ID " + userId + " has been deleted.";
+        return ResponseEntity.ok(response);
+    }
 }

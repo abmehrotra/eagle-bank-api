@@ -2,6 +2,7 @@ package com.eaglebank.service;
 
 import com.eaglebank.dto.UserRequest;
 import com.eaglebank.dto.UserResponse;
+import com.eaglebank.exception.UserConflictException;
 import com.eaglebank.model.User;
 import com.eaglebank.repository.BankAccountRepository;
 import com.eaglebank.repository.UserRepository;
@@ -14,8 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class UserServiceTest {
@@ -102,5 +102,77 @@ public class UserServiceTest {
         when(repo.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class, () -> service.getUserByIdForCurrentUser(99L));
+    }
+
+    @Test
+    void updateUserDetails_ShouldReturn200_SuccessfulUpdate() {
+        User existingUser = user(1L, "Old Name", "alice@example.com", "oldPass");
+        UserRequest updateRequest = userRequest("Alice Updated", "alice@example.com", "newSecret");
+
+        when(repo.findById(1L)).thenReturn(Optional.of(existingUser));
+        when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UserResponse updated = service.updateUserDetails(1L, updateRequest);
+
+        assertEquals("Alice Updated", updated.fullName());
+        assertEquals("alice@example.com", updated.email());
+    }
+
+    @Test
+    void updateUserDetails_ShouldReturn403Forbidden_ForDifferentUser() {
+        User otherUser = user(2L, "Bob", "bob@example.com", "pass");
+        UserRequest updateRequest = userRequest("Hacked", "bob@example.com", "hackpass");
+
+        when(repo.findById(2L)).thenReturn(Optional.of(otherUser));
+
+        assertThrows(AccessDeniedException.class, () -> service.updateUserDetails(2L, updateRequest));
+    }
+
+    @Test
+    void updateUserDetails_ShouldReturn404NotFound_UserNotFound() {
+        when(repo.findById(99L)).thenReturn(Optional.empty());
+
+        UserRequest updateRequest = userRequest("Ghost", "ghost@example.com", "ghostpass");
+
+        assertThrows(NoSuchElementException.class, () -> service.updateUserDetails(99L, updateRequest));
+    }
+
+    @Test
+    void deleteUser_ShouldSucceed_WhenUserOwnsNoBankAccounts() {
+        User user = user(1L, "Alice", "alice@example.com", "secret");
+
+        when(repo.findById(1L)).thenReturn(Optional.of(user));
+        when(bankRepository.existsByUserId(1L)).thenReturn(false);
+
+        assertDoesNotThrow(() -> service.deleteUser(1L));
+        verify(repo).delete(user);
+    }
+
+    @Test
+    void deleteUser_ShouldThrowConflictException_WhenUserHasBankAccounts() {
+        User user = user(1L, "Alice", "alice@example.com", "secret");
+
+        when(repo.findById(1L)).thenReturn(Optional.of(user));
+        when(bankRepository.existsByUserId(1L)).thenReturn(true);
+
+        assertThrows(UserConflictException.class, () -> service.deleteUser(1L));
+        verify(repo, never()).delete(any());
+    }
+
+    @Test
+    void deleteUser_ShouldThrowAccessDenied_WhenDifferentUserTriesToDelete() {
+        User user = user(2L, "Bob", "bob@example.com", "secret");
+
+        when(repo.findById(2L)).thenReturn(Optional.of(user));
+
+        assertThrows(AccessDeniedException.class, () -> service.deleteUser(2L));
+        verify(repo, never()).delete(any());
+    }
+
+    @Test
+    void deleteUser_ShouldThrowNotFound_WhenUserMissing() {
+        when(repo.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () -> service.deleteUser(99L));
     }
 }

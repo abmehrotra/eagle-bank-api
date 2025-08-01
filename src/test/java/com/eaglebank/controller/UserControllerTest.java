@@ -16,8 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -118,6 +117,99 @@ class UserControllerTest {
         String token = generateTokenForUser(authUser.getEmail());
 
         mockMvc.perform(get("/v1/users/9999")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("User not found"));
+    }
+
+    @Test
+    void testUpdateUser_ShouldReturn200_WithUpdatedDetails() throws Exception {
+        User user = createUser("Old Name", "user@example.com", "password123");
+        String token = generateTokenForUser(user.getEmail());
+
+        UserRequest updateRequest = new UserRequest("New Name", "user@example.com", "newpass456");
+
+        mockMvc.perform(patch("/v1/users/" + user.getId())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(user.getId()))
+                .andExpect(jsonPath("$.fullName").value("New Name"));
+    }
+
+    @Test
+    void testUpdateUserAccessDenied_ShouldReturn403_Forbidden() throws Exception {
+        User targetUser = createUser("Target User", "target@example.com", "target123");
+        User authUser = createUser("Auth User", "auth@example.com", "auth123");
+        String token = generateTokenForUser(authUser.getEmail());
+
+        UserRequest updateRequest = new UserRequest("Should Fail", "target@example.com", "hack123");
+
+        mockMvc.perform(patch("/v1/users/" + targetUser.getId())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Access denied"));
+    }
+
+    @Test
+    void testUpdateUserNotFound_ShouldReturn404_NotFound() throws Exception {
+        User authUser = createUser("Auth User", "auth@example.com", "authpass");
+        String token = generateTokenForUser(authUser.getEmail());
+
+        UserRequest updateRequest = new UserRequest("Ghost", "ghost@example.com", "ghost123");
+
+        mockMvc.perform(patch("/v1/users/9999")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("User not found"));
+    }
+
+    @Test
+    void testDeleteUserWithoutBankAccount_ShouldReturn200_Success() throws Exception {
+        User user = createUser("John Doe", "john@example.com", "password123");
+        String token = generateTokenForUser(user.getEmail());
+
+        mockMvc.perform(delete("/v1/users/" + user.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value("User with ID " + user.getId() + " has been deleted."));
+    }
+
+    @Test
+    void testDeleteUserWithBankAccount_ShouldReturn409_Conflict() throws Exception {
+        User user = createUser("Jane Doe", "jane@example.com", "password123");
+        saveBankAccount(user);
+        String token = generateTokenForUser(user.getEmail());
+
+        mockMvc.perform(delete("/v1/users/" + user.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Conflict: Cannot delete user with existing bank accounts"));
+    }
+
+    @Test
+    void testDeleteUserAccessDenied_ShouldReturn403_Forbidden() throws Exception {
+        User targetUser = createUser("Target", "target@example.com", "targetpass");
+        User authUser = createUser("Auth", "auth@example.com", "authpass");
+        String token = generateTokenForUser(authUser.getEmail());
+
+        mockMvc.perform(delete("/v1/users/" + targetUser.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Access denied"));
+    }
+
+    @Test
+    void testDeleteUserNotFound_ShouldReturn404_NotFound() throws Exception {
+        User authUser = createUser("Auth", "auth@example.com", "authpass");
+        String token = generateTokenForUser(authUser.getEmail());
+
+        mockMvc.perform(delete("/v1/users/8888")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("User not found"));

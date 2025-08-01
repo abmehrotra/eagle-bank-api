@@ -2,6 +2,7 @@ package com.eaglebank.service;
 
 import com.eaglebank.dto.UserRequest;
 import com.eaglebank.dto.UserResponse;
+import com.eaglebank.exception.UserConflictException;
 import com.eaglebank.model.User;
 import com.eaglebank.repository.BankAccountRepository;
 import com.eaglebank.repository.UserRepository;
@@ -48,6 +49,29 @@ public class UserService {
         User user = getUserOrThrow(userId);
         ensureCurrentUserAccess(user);
         return mapToResponse(user);
+    }
+
+    public UserResponse updateUserDetails(Long userId, UserRequest request) {
+        User user = getUserOrThrow(userId);
+        ensureCurrentUserAccess(user);
+
+        user.setFullName(request.fullName());
+        user.setEmail(request.email());
+        user.setPassword(passwordEncoder.encode(request.password()));
+
+        User updated = repo.save(user);
+        return mapToResponse(updated);
+    }
+
+    public void deleteUser(Long userId) {
+        User user = getUserOrThrow(userId);
+        ensureCurrentUserAccess(user);
+
+        if (bankAccountRepository.existsByUserId(userId)) {
+            throw new UserConflictException("Conflict: Cannot delete user with existing bank accounts");
+        }
+
+        repo.delete(user);
     }
 
     // --- Private utility methods ---
